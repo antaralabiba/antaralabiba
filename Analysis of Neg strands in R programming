@@ -1,0 +1,65 @@
+#code for merging case and control samples into single data frame
+samp12<-read.table("cpg.raw.12.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+rowz<-paste(samp12$V1,":",samp12$V2, sep="")
+rownames(samp12)<-rowz
+samp13<-read.table("cpg.raw.13.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+rowz<-paste(samp13$V1,":",samp13$V2, sep="")
+rownames(samp13)<-rowz
+SAMP<-merge(samp12,samp13, by="row.names")
+SAMP<-SAMP[which(SAMP$V5.x>10),]
+SAMP<-SAMP[which(SAMP$V5.y>10),]
+rownames(SAMP)<-SAMP$Row.names
+samp14<-read.table("cpg.raw.14.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+rowz<-paste(samp14$V1,":",samp14$V2, sep="")
+rownames(samp14)<-rowz
+SAMP<-merge(SAMP,samp14, by="row.names")
+SAMP<-SAMP[which(SAMP$V5>10),]
+rownames(SAMP)<-SAMP$Row.names
+SAMP[1:3,c(5,6,7,12,13,18,19)]
+SAMP[1:3,c(5,6,7,12,13,18,19)]
+cases.samp.merged<-SAMP[,c(5,6,7,12,13,18,19)]
+saveRDS(cases.samp.merged,”cases_samp_merged.rds”)
+samp15<-read.table("cpg.raw.15.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+samp16<-read.table("cpg.raw.16.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+samp17<-read.table("cpg.raw.17.rs.CG.bed", sep="\t", row.names=NULL, skip=1, header=F)
+rowz<-paste(samp15$V1,":",samp15$V2, sep="")
+rownames(samp15)<-rowz
+samp15<-samp15[,1:6]
+rowz<-paste(samp16$V1,":",samp16$V2, sep="")
+rownames(samp16)<-rowz
+samp16<-samp16[,1:6]
+rowz<-paste(samp17$V1,":",samp17$V2, sep="")
+rownames(samp17)<-rowz
+samp17<-samp17[,1:6]
+SAMP2<-merge(samp15,samp16, by="row.names")
+SAMP2<-SAMP2[which(SAMP2$V5.x>10),]
+SAMP2<-SAMP2[which(SAMP2$V5.y>10),]
+rownames(SAMP2)<-SAMP2$Row.names
+SAMP2<-merge(SAMP2,samp17, by="row.names")
+SAMP2<-SAMP2[which(SAMP2$V5>10),]
+rownames(SAMP2)<-SAMP2$Row.names
+SAMP2[1:3,c(5,6,7,12,13,18,19)]
+control.samp.merged<-SAMP2[,c(5,6,7,12,13,18,19)] 
+cases.samp.merged<-SAMP[,c(5,6,7,12,13,18,19)]
+saveRDS(cases.samp.merged,"cases_samp_merged.rds")
+cases.samp.merged<-readRDS("cases_samp_merged.rds")
+rm(cases.control.merged)
+CASE.CONT<-merge(cases.samp.merged,control.samp.merged,by="row.names")
+
+#code for calculating mean and t.test
+CASE.CONT$case.mean<-apply(CASE.CONT[,c(3,5,7)],1,mean,na.rm=T)
+CASE.CONT$cont.mean<-apply(CASE.CONT[,c(10,12,14)],1,mean,na.rm=T)
+CASE.CONT$diff<-CASE.CONT$case.mean-CASE.CONT$cont.mean
+summary(CASE.CONT$diff)
+wh.case<-c(3,5,7)
+wh.cont<-c(10,12,14)
+t.test(as.numeric(CASE.CONT[i,wh.case]),as.numeric(CASE.CONT[i,wh.cont]))
+for(i in 1:nrow(CASE.CONT)){
++ if(sd(CASE.CONT[i,c(wh.case,wh.cont)])==0) next
++ ttest.pval[i]<-t.test(as.numeric(CASE.CONT[i,wh.case]),as.numeric(CASE.CONT[i,wh.cont]))$p.value
++ }
+
+CASE.CONT$ttest.pval<-ttest.pval
+CASE.CONT$ttest.fdr<-p.adjust(ttest.pval,method="fdr")
+
+
