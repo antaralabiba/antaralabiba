@@ -62,4 +62,59 @@ for(i in 1:nrow(CASE.CONT)){
 CASE.CONT$ttest.pval<-ttest.pval
 CASE.CONT$ttest.fdr<-p.adjust(ttest.pval,method="fdr")
 
+#weighting coverage example 
+
+median(CASE.CONT$samp12.cov)
+samp12.weight.cov<-rep(1,length(CASE.CONT$samp12.cov))
+for(i in 1:length(samp12.weight.cov))
+{
+if(CASE.CONT$samp12.cov[i]>median(CASE.CONT$samp12.cov)) next
+samp12.weight.cov[i]<-CASE.CONT$samp12.cov[i]/median(CASE.CONT$samp12.cov)
+}
+chr.list<-strsplit(CASE.CONT$Row.names, “:”)
+
+chr.list.chr<-unlist(chr.list)[c(TRUE,FALSE)]
+chr.list.start<-unlist(chr.list)[c(FALSE,TRUE)]
+
+CASE.CONT$chr<-chr.list.chr
+CASE.CONT$start<-chr.list.start
+
+
+targets$Wmean.samp12<-NA
+
+for (i in 1:nrow(targets))
+
+{
+
+chrz<-targets$chr[i]
+startz<-targets$start[i]
+endz<-targets$end[i]
+
+sel<-which(CASE.CONT$chr==chrz & CASE.CONT$start>startz & CASE.CONT$start<endz)
+
+targets$Wmean.samp12[i]<-(sum(samp12.weight.cov[sel]*CASE.CONT$samp12.meth[sel], na.rm=T))/sum(samp12.weight.cov[sel],na.rm=T)
+
+}
+
+#example code for exposure signiture calculation
+bmi<-read.table("bmi.txt", sep="\t", header=T)
+rownames(bmi)<-bmi$CpG
+wh3<-which(is.element(rownames(bmi),rownames(targets)))
+bmi<-bmi[wh3,]
+bmi.meth.new<-targets[rownames(bmi),]
+bmi.pred.new<-rep(NA,ncol(targets))
+bmi.meth.new
+bmi.pred.new
+bmi.meth.new<-na.omit(bmi.meth.new)
+bmi.meth.new
+samp12Beta.Bmi<-(bmi.meth.new$Wmean.samp12)/100
+bmi.meth.new$samp12Beta<-samp12Beta.Bmi
+bmi.meth.new
+for (i in 1:ncol(bmi.meth.new))
+{
+bmi.pred.new[i]<-sum(bmi.meth.new[,i]*bmi$Beta, na.rm=T)
+}
+bmi.pred.new
+bmi.new.z<-(bmi.pred.new-mean(bmi.pred.new))/sd(bmi.pred.new)
+bmi.new.z
 
