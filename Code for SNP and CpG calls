@@ -1,0 +1,35 @@
+#activating my conda environment
+source ~/.bashrc
+conda activate myenv
+install -c bioconda/label/cf201901 bis-snp
+
+#example code for reordering Sam file
+java -jar picard.jar ReorderSam I=trim_noadapt_12_S6_L001_R1_001_run123.fastq_bismark_bt2.RG.bam O=trim_noadapt_12_S6_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam SEQUENCE_DICTIONARY=ucsc.hg19.fasta
+
+#example code for AddOrReplaceReadGroups
+java -Xmx4g -jar AddOrReplaceReadGroups.jar I=trim_noadapt_16_S10_L001_R1_001_run123.fastq_bismark_bt2.bam O=trim_noadapt_16_S10_L001_R1_001_run123 LB=trim_noadapt_16_S10_L001_R1_001_run123 PL=illumina PU=run SM=sample_16 CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT SORT_ORDER=coordinate
+
+
+#splitting bam files into positive strand
+samtools view -b -F 16 trim_noadapt_13_S7_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample13forwardstrand.bam
+samtools view -b -F 16 trim_noadapt_14_S8_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample14forwardstrand.bam
+samtools view -b -F 16 trim_noadapt_15_S9_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample15forwardstrand.bam
+samtools view -b -F 16 trim_noadapt_16_S10_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample16forwardstrand.bam
+samtools view -b -F 16 trim_noadapt_17_S11_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample17forwardstrand.bam
+
+
+#splitting bam files into negative strand
+samtools view -b -f 16 trim_noadapt_13_S7_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample13reversestrand.bam
+samtools view -b -f 16 trim_noadapt_14_S8_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample14reversestrand.bam
+samtools view -b -f 16 trim_noadapt_15_S9_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam  > sample15reversestrand.bam
+samtools view -b -f 16 trim_noadapt_16_S10_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample16reversestrand.bam
+samtools view -b -f 16 trim_noadapt_17_S11_L001_R1_001_run123.fastq_bismark_bt2.RG.sorted.bam > sample17reversestrand.bam
+
+#indexing bam files
+samtools index sample12reversestrand.bam ; samtools index sample13forwardstrand.bam ; samtools index sample13reversestrand.bam ; samtools index sample14forwardstrand.bam ; samtools index sample14reversestrand.bam ; samtools index sample15forwardstrand.bam ; samtools index sample15reversestrand.bam ; samtools index sample16forwardstrand.bam ; samtools index sample16reversestrand.bam ; samtools index sample17forwardstrand.bam ; samtools index sample17reversestrand.bam
+
+#Running Bis-SNP to extract SNP and CpG information
+Java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample12reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.12.rs.vcf -vfn2 snp.raw.12.rs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample13forwardstrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.13.fs.vcf -vfn2 snp.raw.13.fs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample13reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.13.rs.vcf -vfn2 snp.raw.13.rs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample14forwardstrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.14.fs.vcf -vfn2 snp.raw.14.fs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample14reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.14.rs.vcf -vfn2 snp.raw.14.rs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample15forwardstrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.15.fs.vcf -vfn2 snp.raw.15.fs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample15reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.15.rs.vcf -vfn2 snp.raw.15.rs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample16forwardstrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.16.fs.vcf -vfn2 snp.raw.16.fs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample16reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.16.rs.vcf -vfn2 snp.raw.16.rs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample17forwardstrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.17.fs.vcf -vfn2 snp.raw.17.fs.vcf ; java -Xmx4g -jar BisSNP-1.0.0.jar -R ucsc.hg19.fasta -T BisulfiteGenotyper -I sample17reversestrand.bam  -D dbsnp_138.hg19.sorted2.vcf  -vfn1 cpg.raw.17.rs.vcf -vfn2 snp.raw.17.rs.vcf 
+
+#example code to convert CpG VCF file into BED file
+perl vcf2bed.pl cpg.raw.15.vcf CG
