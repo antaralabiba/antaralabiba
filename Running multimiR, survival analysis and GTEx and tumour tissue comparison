@@ -1,0 +1,202 @@
+#loading multimiR 
+library (multiMiR)
+#loading my miRNA list in
+mirlist<-read.csv("~/Desktop/HAFNER_8_miR_targets_3UTR.csv")
+library(dplyr)
+miRcolumn<-mirlist%>%select(miRNAs)
+miRcolumn
+#extracting gene target from validated database
+alltargets<-get_multimir(url = NULL, org = "hsa", mirna = miRcolumn , target = NULL,
+disease.drug = NULL, table = "validated", predicted.cutoff = NULL,
+predicted.cutoff.type = "p", predicted.site = "conserved",
+summary = FALSE, add.link = FALSE, use.tibble = FALSE, limit = NULL,
+legacy.out = FALSE)
+alltargets
+#extracting gene targets from predicted databases
+alltargetspredicted<-get_multimir(url = NULL, org = "hsa", mirna = miRcolumn , target = NULL,
+disease.drug = NULL, table = "predicted", predicted.cutoff = NULL,
+predicted.cutoff.type = "p", predicted.site = "conserved",
+summary = FALSE, add.link = FALSE, use.tibble = FALSE, limit = NULL,
+legacy.out = FALSE)
+alltargetspredicted
+#running on all databases
+validated.predicted<-get_multimir(url = NULL, org = "hsa", mirna = miRcolumn , target = NULL, disease.drug = NULL, table = "all", predicted.cutoff = NULL, predicted.cutoff.type = "p", predicted.site = "conserved",
+summary = FALSE, add.link = FALSE, use.tibble = FALSE, limit = NULL, legacy.out = FALSE)
+validated.predicted
+class(validated.predicted)
+#subsetting out predicted database
+predicted.subsetted<-subset(alltargetspredicted@data, alltargetspredicted@data$type == "predicted")
+class(predicted.subsetted)
+subsestted.ensembl<-predicted.subsetted %>% 
+  filter(database %in% c("diana_microt","targetscan", "microcosm", "mirdb")) %>%
+  group_by(mature_mirna_id, target_symbol, target_ensembl) %>%
+  summarise(n = n()) 
+removing.duplicates<-subsetting.4databases %>% distinct(database, mature_mirna_id, target_symbol, target_ensembl, .keep_all = TRUE)
+  subsestted.database2<-removing.duplicates%>% 
+  filter(database %in% c("diana_microt","targetscan", "microcosm", "mirdb")) %>%
+  group_by(database, mature_mirna_id, target_symbol, target_ensembl) %>%
+  summarise(n = n())
+subsestted.database3<-removing.duplicates%>% 
+  filter(database %in% c("diana_microt","targetscan", "microcosm", "mirdb")) %>%
+  group_by(mature_mirna_id, target_symbol, target_ensembl) %>%
+  summarise(n = n())
+subsetted.2ormore<-subsestted.database3 %>% filter (n>=2)
+#subsetting validated database and sorting the output
+alltargets.val<-subset(alltargets@data, alltargets@data$type == "validated")
+class(predicted.subsetted)
+validated.no.duplicates<-alltargets.val %>% distinct(database, mature_mirna_id, target_symbol, target_ensembl, .keep_all = TRUE)
+validated.grouped<-validated.no.duplicates%>% 
+  group_by(mature_mirna_id, target_symbol, target_ensembl) %>%
+  summarise(n = n())
+validated.grouped.database<-validated.no.duplicates%>% 
+  group_by(database,mature_mirna_id, target_symbol, target_ensembl) %>%
+  summarise(n = n())
+validated.subsetted.2ormore<-validated.grouped %>% filter (n>=2)
+
+library(miRBaseConverter)
+version=checkMiRNAVersion(predicted.subsetted$mature_mirna_id, verbose = TRUE)
+miR.TCGA.converted.database<-miRNA_AccessionToName(miR.TCGA.database$sample,targetVersion = "v22" )
+library(tidyverse)
+miR.TCGA.joined<-left_join(miR.TCGA.converted.database,miR.TCGA.database,by=c("Accession"="sample"))
+miR.TCGA.joined2<-na.omit(miR.TCGA.joined)
+rowz<-paste(mirlist$miRNAs)
+rownames(mirlist)<-rowz
+library(ggplot2)
+library(limma)
+rowz3<-paste(phenotype.TCGA.database$sample)
+rownames(phenotype.TCGA.database)<-rowz3
+rownames(phenotype.TCGA.database) <- gsub(rownames(phenotype.TCGA.database),pattern="-",replace=".")
+sum(colnames(miR.TCGA.joined2) %in% rownames(phenotype.TCGA.database))
+#survival analysis on miRNAs
+install.packages("survival")
+library(survival)
+clin.data<-read.delim("~/Downloads/PRAD_clinicalMatrix")
+rowz4<-paste(clin.data$sampleID)
+rownames(clin.data)<-rowz4
+rownames(clin.data) <- gsub(rownames(clin.data),pattern="-",replace=".")
+sum(colnames(miR.TCGA.joined24) %in% rownames(clin.data))
+os.time <- clin.data[colnames(miR.TCGA.joined24),"days_to_last_followup"]
+os.event <- as.numeric(clin.data[colnames(miR.TCGA.joined24),"vital_status"]=="DECEASED")
+pros.os <- Surv(os.time,os.event)
+table(clin.data$vital_status)
+pros.os
+os.event
+rowz5<-miR.TCGA.joined2$TargetName
+rownames(miR.TCGA.joined2)<-rowz5
+miR.TCGA.joined5<-select(miR.TCGA.joined2, -c(TargetName))
+os.time <- clin.data[colnames(miR.TCGA.joined5),"days_to_last_followup"]
+os.event <- as.numeric(clin.data[colnames(miR.TCGA.joined5),"vital_status"]=="DECEASED")
+os.event
+pros.os<-Surv(os.time,os.event)
+pros.os
+class(miR.TCGA.joined5[1,])
+class(os.event)
+coxph(pros.os~ miR.TCGA.joined5[1,])
+all.hrs <- rep(NA,nrow(miR.TCGA.joined5))
+all.pvals <- rep(NA,nrow(miR.TCGA.joined5))
+all.lci <- rep(NA,nrow(miR.TCGA.joined5))
+all.uci <- rep(NA,nrow(miR.TCGA.joined5))
+
+for(i in 1:nrow(miR.TCGA.joined5)){
+coxphmodel <- coxph(pros.os ~ miR.TCGA.joined5[i,]) 
+all.hrs[i] <- summary(coxphmodel)$coef[1,2] 
+all.pvals[i] <- summary(coxphmodel)$coef[1,5] 
+all.lci[i] <- summary(coxphmodel)$conf.int[1,3] 
+all.uci[i] <- summary(coxphmodel)$conf.int[1,4] 
+}
+
+miR.coxph.df <- data.frame(miR=rownames(miR.TCGA.joined5),HR=all.hrs,LCI=all.lci,UCI=all.uci,p.value=all.pvals)
+miR.coxph.df$adj.p <- p.adjust(all.pvals)
+miR.coxph.df <- miR.coxph.df[order(miR.coxph.df$p.value,decreasing=FALSE),] 
+miR.coxph.df[1:4,]
+miR.coxph.df
+
+#survival analysis on genes
+gene.expression.TCGA.database<-read.delim("~/Downloads/HiSeqV2_PANCAN.gz")
+sum(colnames(gene.expression.TCGA.database) %in% rownames(clin.data))
+os.time2 <- clin.data[colnames(gene.expression.TCGA.database),"days_to_last_followup"]
+os.event2 <- as.numeric(clin.data[colnames(gene.expression.TCGA.database),"vital_status"]=="DECEASED")
+pros.os2<-Surv(os.time2,os.event2)
+class(gene.expression.TCGA.database)
+gene.expression.TCGA.database2<-as.matrix(gene.expression.TCGA.database)
+gene.expression.TCGA.database3<-na.omit(gene.expression.TCGA.database2)
+all.hrs <- rep(NA,nrow(gene.expression.TCGA.database3))
+all.pvals <- rep(NA,nrow(gene.expression.TCGA.database3))
+all.lci <- rep(NA,nrow(gene.expression.TCGA.database3))
+all.uci <- rep(NA,nrow(gene.expression.TCGA.database3))
+for(i in 1:nrow(gene.expression.TCGA.database3)){
+coxphmodel <- coxph(pros.os2 ~ gene.expression.TCGA.database3[i,])
+all.hrs[i] <- summary(coxphmodel)$coef[1,2] 
+all.pvals[i] <- summary(coxphmodel)$coef[1,5] 
+all.lci[i] <- summary(coxphmodel)$conf.int[1,3] 
+all.uci[i] <- summary(coxphmodel)$conf.int[1,4] 
+}
+
+#GTex and tumour tissue comparison
+library(TCGAbiolinks)
+library(survminer)
+TCGA.GTEX.all<-read.table(file = '~/Downloads/xenaDownload.tsv', sep = '\t', header = TRUE)
+x<-TCGA.GTEX[1:100,7]
+y<-TCGA.GTEX[101:595,7]
+t.test(x,y)
+TCGA.GTEX.CADM1<-read.table(file = '~/Downloads/denseDataOnlyDownloadCADM1.tsv', sep = '\t', header = TRUE)
+x.cadm1<-TCGA.GTEX.CADM1[1:100,7]
+y.cadm1<-TCGA.GTEX.CADM1[101:595,7]
+t.test(x.cadm1,y.cadm1)
+TCGA.GTEX.CDC14B<-read.table(file = '~/Downloads/denseDataOnlyDownloadCDC14B.tsv', sep = '\t', header = TRUE)
+x.cdc14b<-TCGA.GTEX.CADM1[1:100,7]
+y.cdc14b<-TCGA.GTEX.CADM1[101:595,7]
+t.test(x.cdc14b,y.cdc14b)
+TCGA.GTEX.KCNJ2<-read.table(file = '~/Downloads/denseDataOnlyDownloadKCNJ2.tsv', sep = '\t', header = TRUE)
+x.kcnj2<-TCGA.GTEX.KCNJ2[1:100,7]
+y.kcnj2<-TCGA.GTEX.KCNJ2[101:595,7]
+t.test(x.kcnj2,y.kcnj2)
+TCGA.GTEX.IKBKB<-read.table(file = '~/Downloads/denseDataOnlyDownloadIKBKB.tsv', sep = '\t', header = TRUE)
+x.ikbkb<-TCGA.GTEX.IKBKB[1:100,7]
+y.ikbkb<-TCGA.GTEX.IKBKB[101:595,7]
+t.test(x.ikbkb,y.ikbkb)
+TCGA.GTEX.PISD<-read.table(file = '~/Downloads/denseDataOnlyDownloadPISD.tsv', sep = '\t', header = TRUE)
+x.pisd<-TCGA.GTEX.PISD[1:100,7]
+y.pisd<-TCGA.GTEX.PISD[101:595,7]
+t.test(x.pisd,y.pisd)
+TCGA.GTEX.RELN<-read.table(file = '~/Downloads/denseDataOnlyDownloadRELN.tsv', sep = '\t', header = TRUE)
+x.reln<-TCGA.GTEX.RELN[1:100,7]
+y.reln<-TCGA.GTEX.RELN[101:595,7]
+t.test(x.reln,y.reln)
+rowz26<-paste(TCGA.GTEX$sample)
+rownames(TCGA.GTEX)<-rowz26
+rownames(TCGA.GTEX.CADM1)<-rowz26
+rownames(TCGA.GTEX.CDC14B)<-rowz26
+rownames(TCGA.GTEX.IKBKB)<-rowz26
+rownames(TCGA.GTEX.KCNJ2)<-rowz26
+rownames(TCGA.GTEX.PISD)<-rowz26
+rownames(TCGA.GTEX.RELN)<-rowz26
+TCGA.GTEX.all<-merge(TCGA.GTEX,TCGA.GTEX.CADM1,by="row.names")
+rownames(TCGA.GTEX.all)<-rowz26
+TCGA.GTEX.all2<-merge(TCGA.GTEX.all,TCGA.GTEX.CDC14B,by="row.names")
+rownames(TCGA.GTEX.all2)<-rowz26
+TCGA.GTEX.all3<-merge(TCGA.GTEX.all2,TCGA.GTEX.IKBKB,by="row.names")
+rownames(TCGA.GTEX.all3)<-rowz26
+TCGA.GTEX.all4<-merge(TCGA.GTEX.all3,TCGA.GTEX.KCNJ2,by="row.names")
+rownames(TCGA.GTEX.all4)<-rowz26
+TCGA.GTEX.all5<-merge(TCGA.GTEX.all4,TCGA.GTEX.PISD,by="row.names")
+rownames(TCGA.GTEX.all5)<-rowz26
+TCGA.GTEX.all6<-merge(TCGA.GTEX.all5,TCGA.GTEX.RELN,by="row.names")
+TCGA.GTEX.DLL1<-read.table(file = '~/Downloads/denseDataOnlyDownloadDLL1.tsv', sep = '\t', header = TRUE)
+x.dll1<-TCGA.GTEX.DLL1[1:100,7]
+y.dll1<-TCGA.GTEX.DLL1[101:595,7]
+t.test(x.dll1,y.dll1)
+rownames(TCGA.GTEX.DLL1)<-rowz26
+TCGA.GTEX.all7<-merge(TCGA.GTEX.all6,TCGA.GTEX.DLL1,by="row.names")
+names(TCGA.GTEX.all7)[14] <- "RELN"
+names(TCGA.GTEX.all7)[11] <- "sample_type_RELN"
+tcga.gtex.testing3 <- gather(TCGA.GTEX.all7, "CADM1", "CDC14B", "KCNJ2", "PISD", "RELN", "DLL1","IKBKB", key="gene", value="value")
+tcga.gtex.testing4<-tcga.gtex.testing3[,7:58]
+tcga.gtex.testing3$sample_type_RELN <- as.factor(tcga.gtex.testing3$sample_type_RELN)
+tcga.gtex.testing4<-tcga.gtex.testing3[,7:58]
+ggplot(tcga.gtex.testing4, aes(x = gene, y = value, color = sample_type_RELN)) +
+  geom_boxplot()
+  p<-ggplot(tcga.gtex.testing4, aes(x = gene, y = value, color = sample_type_RELN)) +
+  geom_boxplot()
+p + facet_wrap( ~ gene, scales="free")
+```
